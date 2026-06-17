@@ -1,0 +1,434 @@
+// Tempus.vn - Luxury Watch E-Commerce
+// Database: Neon DB (Serverless PostgreSQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+// ========================
+// ENUMS
+// ========================
+
+enum Role {
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  COD
+  VNPAY
+  BANK_TRANSFER
+  INSTALLMENT
+}
+
+enum PaymentProvider {
+  COD
+  VNPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
+  REFUNDED
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum TransactionType {
+  IMPORT
+  EXPORT
+  ADJUSTMENT
+}
+
+enum ServiceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+// ========================
+// AUTH MODELS (NextAuth v5)
+// ========================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  phone         String?
+  address       String?
+  role          Role      @default(CUSTOMER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts        Account[]
+  sessions        Session[]
+  orders          Order[]
+  reviews         Review[]
+  wishlists       Wishlist[]
+  notifications   Notification[]
+  blogs           Blog[]            @relation("BlogAuthor")
+  serviceRequests ServiceRequest[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ========================
+// PRODUCT MODELS
+// ========================
+
+model Brand {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  logo        String?
+  description String?  @db.Text
+  country     String?
+  foundedYear Int?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  watches Watch[]
+
+  @@map("brands")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  image       String?
+  parentId    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  watches  Watch[]
+
+  @@map("categories")
+}
+
+model Watch {
+  id              String   @id @default(cuid())
+  sku             String   @unique
+  name            String
+  slug            String   @unique
+  description     String?  @db.Text
+  price           Float
+  originalPrice   Float?
+  stock           Int      @default(0)
+  soldCount       Int      @default(0)
+  isFeatured      Boolean  @default(false)
+  isLimited       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  images          String[]
+  // Technical specifications
+  movement        String?  // Automatic, Quartz, Manual
+  caseMaterial    String?  // Gold, Steel, Titanium
+  dialColor       String?
+  waterResistance String?  // e.g., "10 ATM"
+  caseSize        String?  // e.g., "41mm"
+  strapMaterial   String?  // Leather, Steel, Rubber
+  warranty        Int?     // Years
+  // Relations
+  brandId         String
+  categoryId      String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  brand                Brand                 @relation(fields: [brandId], references: [id])
+  category             Category              @relation(fields: [categoryId], references: [id])
+  orderItems           OrderItem[]
+  reviews              Review[]
+  wishlists            Wishlist[]
+  inventoryTransactions InventoryTransaction[]
+
+  @@map("watches")
+}
+
+// ========================
+// SUPPLIER & INVENTORY
+// ========================
+
+model Supplier {
+  id           String   @id @default(cuid())
+  name         String
+  contactEmail String?
+  phone        String?
+  address      String?  @db.Text
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  inventoryTransactions InventoryTransaction[]
+
+  @@map("suppliers")
+}
+
+model InventoryTransaction {
+  id           String          @id @default(cuid())
+  watchId      String
+  supplierId   String?
+  type         TransactionType
+  quantity     Int
+  serialNumber String?
+  note         String?         @db.Text
+  createdBy    String?
+  createdAt    DateTime        @default(now())
+
+  watch    Watch     @relation(fields: [watchId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+
+  @@map("inventory_transactions")
+}
+
+// ========================
+// ORDER MODELS
+// ========================
+
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique
+  userId          String
+  status          OrderStatus   @default(PENDING)
+  paymentMethod   PaymentMethod @default(COD)
+  subtotal        Float
+  discount        Float         @default(0)
+  shippingFee     Float         @default(0)
+  total           Float
+  couponId        String?
+  shippingName    String?
+  shippingPhone   String?
+  shippingAddress String?       @db.Text
+  shippingEmail   String?
+  note            String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user   User       @relation(fields: [userId], references: [id])
+  coupon Coupon?    @relation(fields: [couponId], references: [id])
+  items  OrderItem[]
+  payments PaymentTransaction[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String  @id @default(cuid())
+  orderId      String
+  watchId      String
+  quantity     Int
+  price        Float
+  serialNumber String?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  watch Watch @relation(fields: [watchId], references: [id])
+
+  @@map("order_items")
+}
+
+model PaymentTransaction {
+  id              String          @id @default(cuid())
+  orderId         String
+  provider        PaymentProvider
+  status          PaymentStatus   @default(PENDING)
+  amount          Int
+  currency        String          @default("VND")
+  providerTxnRef  String?         @unique
+  providerPayload Json?
+  paidAt          DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([provider, status])
+  @@map("payment_transactions")
+}
+
+// ========================
+// COUPON
+// ========================
+
+model Coupon {
+  id            String     @id @default(cuid())
+  code          String     @unique
+  type          CouponType
+  value         Float      // Percentage or fixed amount
+  minOrderValue Float?
+  maxUses       Int?
+  usedCount     Int        @default(0)
+  expiresAt     DateTime?
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  orders Order[]
+
+  @@map("coupons")
+}
+
+// ========================
+// REVIEW
+// ========================
+
+model Review {
+  id               String   @id @default(cuid())
+  userId           String
+  watchId          String
+  rating           Int      // 1-5
+  comment          String?  @db.Text
+  isApproved       Boolean  @default(false)
+  verifiedPurchase Boolean  @default(false)
+  adminReply       String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id])
+  watch Watch @relation(fields: [watchId], references: [id])
+
+  @@map("reviews")
+}
+
+// ========================
+// WISHLIST
+// ========================
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  watchId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watch Watch @relation(fields: [watchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, watchId])
+  @@map("wishlists")
+}
+
+// ========================
+// NOTIFICATION
+// ========================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String   @db.Text
+  type      String?  // ORDER, SYSTEM, PROMOTION
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// ========================
+// BLOG
+// ========================
+
+model Blog {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  excerpt     String?  @db.Text
+  content     String   @db.Text
+  image       String?
+  views       Int      @default(0)
+  isPublished Boolean  @default(false)
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author User @relation("BlogAuthor", fields: [authorId], references: [id])
+
+  @@map("blogs")
+}
+
+// ========================
+// SERVICE REQUEST
+// ========================
+
+model ServiceRequest {
+  id               String        @id @default(cuid())
+  userId           String
+  watchInfo        String        @db.Text
+  issueDescription String        @db.Text
+  status           ServiceStatus @default(PENDING)
+  estimatedCost    Float?
+  adminNote        String?       @db.Text
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("service_requests")
+}

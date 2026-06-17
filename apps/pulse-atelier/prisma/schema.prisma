@@ -1,0 +1,182 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Brand {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  country   String
+  summary   String
+  products  Product[]
+}
+
+model Category {
+  id          String    @id
+  name        String
+  slug        String    @unique
+  description String
+  products    Product[]
+}
+
+model Product {
+  id                 String     @id @default(uuid())
+  sku                String     @unique
+  name               String
+  slug               String     @unique
+  brandId            String
+  brand              Brand      @relation(fields: [brandId], references: [id])
+  categoryId         String
+  category           Category   @relation(fields: [categoryId], references: [id])
+  price              Float
+  originalPrice      Float?
+  stock              Int
+  lowStockThreshold  Int        @default(5)
+  rating             Float      @default(0.0)
+  reviewCount        Int        @default(0)
+  soldCount          Int        @default(0)
+  isFeatured         Boolean    @default(false)
+  status             String     @default("active")
+  badges             String[]
+  image              String
+  gallery            String[]
+  shortDescription   String
+  description        String
+  ecosystems         String[]
+  useCases           String[]
+  compatibilityNotes String[]
+  batteryHours       Float      @default(0.0)
+  connectivity       String[]
+  waterResistance    String?
+  sensors            String[]
+  anc                Boolean?
+  weightGrams        Float?
+  warrantyMonths     Int                 @default(12)
+  bundleProductIds   String[]
+  reviews            Review[]
+  inventoryMovements InventoryMovement[]
+}
+
+model Customer {
+  id                 String          @id @default(uuid())
+  name               String
+  email              String          @unique
+  phone              String
+  segment            String          @default("New")
+  address            String
+  lifetimeSpend      Float           @default(0.0)
+  wishlistProductIds String[]
+  orders             Order[]
+  reviews            Review[]
+  supportTickets     SupportTicket[]
+  account            Account?
+}
+
+model Account {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  password   String
+  role       String    @default("user") // "user" | "admin"
+  name       String
+  customerId String?   @unique
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  phone      String?
+  address    String?
+  createdAt  DateTime  @default(now())
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  orderNumber     String      @unique
+  customerId      String
+  customer        Customer    @relation(fields: [customerId], references: [id])
+  status          String      @default("pending")
+  paymentStatus   String      @default("pending")
+  paymentMethod   String?
+  shippingAddress String
+  note            String
+  createdAt       DateTime    @default(now())
+  subtotal        Float       @default(0.0)
+  discount        Float       @default(0.0)
+  shippingFee     Float       @default(0.0)
+  total           Float       @default(0.0)
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  quantity  Int
+  unitPrice Float
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  rating     Int
+  content    String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+}
+
+model SupportTicket {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  productId  String?
+  subject    String
+  status     String   @default("open")
+  priority   String   @default("medium")
+  assignedTo String
+  createdAt  DateTime @default(now())
+}
+
+model Article {
+  id        String   @id @default(uuid())
+  title     String
+  slug      String   @unique
+  excerpt   String
+  category  String
+  published Boolean  @default(false)
+}
+
+model HeroBanner {
+  id        String   @id @default(uuid())
+  title     String
+  subtitle  String
+  ctaLabel  String
+  ctaHref   String
+  productId String
+}
+
+model Coupon {
+  id         String   @id @default(uuid())
+  code       String   @unique
+  type       String
+  value      Float
+  usageCount Int      @default(0)
+  usageLimit Int      @default(100)
+  active     Boolean  @default(true)
+  startsAt   DateTime
+  endsAt     DateTime
+}
+
+model InventoryMovement {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      String
+  quantity  Int
+  reason    String
+  createdAt DateTime @default(now())
+}
