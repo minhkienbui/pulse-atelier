@@ -100,7 +100,7 @@ export function CheckoutForm() {
     if (payload.paymentMethod === "bank") {
       const res = await createVnpayUrlAction({
         orderNumber: order.orderNumber,
-        amount: order.total,
+        amount: totals.total,
         transactionRef: order.orderNumber,
       });
       if (res.ok) {
