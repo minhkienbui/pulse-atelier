@@ -16,10 +16,11 @@ import { useCartStore } from "@/stores/cart-store";
 import { useOrderStore } from "@/stores/order-store";
 import { useAdminStore } from "@/stores/admin-store";
 import type { Order } from "@/types/domain";
+import { createVnpayUrlAction } from "@/lib/vnpay-actions";
 
 const paymentMethods = [
   { value: "cod", label: "Thanh toan khi nhan hang", icon: WalletCards, disabled: false },
-  { value: "bank", label: "Chuyen khoan ngan hang", icon: Landmark, disabled: false },
+  { value: "bank", label: "Thanh toan QR / VNPAY", icon: Landmark, disabled: false },
   { value: "card", label: "The ngan hang", icon: CreditCard, disabled: true },
 ];
 
@@ -68,7 +69,7 @@ export function CheckoutForm() {
     setErrors((current) => ({ ...current, [field]: undefined }));
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const payload = { ...input, couponCode };
     const result = validateCheckout(payload);
@@ -95,6 +96,21 @@ export function CheckoutForm() {
     addOrder(order);
     useAdminStore.getState().addOrder(order);
     clearCart();
+
+    if (payload.paymentMethod === "bank") {
+      const res = await createVnpayUrlAction({
+        orderNumber: order.orderNumber,
+        amount: order.total,
+        transactionRef: order.orderNumber,
+      });
+      if (res.ok) {
+        window.location.href = res.url;
+        return;
+      } else {
+        alert("Khong the tao URL VNPAY: " + res.error);
+      }
+    }
+
     setConfirmedOrder(order);
     setConfirmed(true);
     setConfirmationNumber(order.orderNumber);
