@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { accounts, type Account, type AuthRole } from "@/data/accounts";
-import { accountEmailExists, authenticateAccount, createAccountId, createCustomerId, normalizeEmail } from "@/lib/auth";
+import { accountEmailExists, createAccountId, createCustomerId, normalizeEmail } from "@/lib/auth";
 import { loginAction, registerAction } from "@/lib/auth-actions";
 import { useAdminStore } from "@/stores/admin-store";
 

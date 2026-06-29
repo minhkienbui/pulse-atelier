@@ -7,8 +7,8 @@ import {
 
 describe("VNPAY payment helper library", () => {
   beforeEach(() => {
-    process.env.VNPAY_TMN_CODE = "TEMPUS";
-    process.env.VNPAY_HASH_SECRET = "super-secret";
+    process.env.VNPAY_TMN_CODE = "2QXUI4J4";
+    process.env.VNPAY_HASH_SECRET = "SECRETKEY";
     process.env.VNPAY_PAYMENT_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
     process.env.VNPAY_RETURN_URL = "http://localhost:3100/thanh-toan/ket-qua";
   });
@@ -27,7 +27,7 @@ describe("VNPAY payment helper library", () => {
     const payload = vnpayParamsToObject(params);
 
     expect(url.origin + url.pathname).toBe(process.env.VNPAY_PAYMENT_URL);
-    expect(payload.vnp_TmnCode).toBe("TEMPUS");
+    expect(payload.vnp_TmnCode).toBe("2QXUI4J4");
     expect(payload.vnp_Amount).toBe("10000000"); // 100,000 * 100
     expect(payload.vnp_TxnRef).toBe("PA-123456");
     expect(verifyVnpaySignature(params)).toBe(true);
@@ -44,5 +44,18 @@ describe("VNPAY payment helper library", () => {
     url.searchParams.set("vnp_Amount", "20000000"); // Tampered amount
 
     expect(verifyVnpaySignature(url.searchParams)).toBe(false);
+  });
+
+  it("rejects placeholder merchant credentials before redirecting to VNPAY", () => {
+    process.env.VNPAY_TMN_CODE = "TEMPUS";
+    process.env.VNPAY_HASH_SECRET = "super-secret";
+
+    expect(() =>
+      createVnpayPaymentUrl({
+        orderNumber: "PA-123456",
+        amount: 100000,
+        transactionRef: "PA-123456",
+      })
+    ).toThrow("VNPAY_TMN_CODE dang la gia tri mau");
   });
 });

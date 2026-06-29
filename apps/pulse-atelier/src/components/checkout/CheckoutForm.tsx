@@ -104,7 +104,7 @@ export function CheckoutForm() {
         transactionRef: order.orderNumber,
       });
       if (res.ok) {
-        window.location.href = res.url;
+        window.location.assign(res.url);
         return;
       } else {
         alert("Khong the tao URL VNPAY: " + res.error);

@@ -22,13 +22,49 @@ function requireEnv(name: string) {
   if (!value) {
     throw new Error(`${name} is required for VNPAY integration.`);
   }
-  return value;
+  return value.trim();
+}
+
+function rejectPlaceholderCredential(name: string, value: string) {
+  const normalized = value.trim();
+  const upper = normalized.toUpperCase();
+
+  if (
+    name === "VNPAY_TMN_CODE" &&
+    (upper === "TEMPUS" || upper === "YOUR_TMN_CODE" || upper === "TMNCODE")
+  ) {
+    throw new Error(
+      "VNPAY_TMN_CODE dang la gia tri mau. Hay cap nhat ma website VNPAY sandbox hoac production trong .env."
+    );
+  }
+
+  if (
+    name === "VNPAY_HASH_SECRET" &&
+    (normalized === "super-secret" ||
+      upper === "YOUR_HASH_SECRET" ||
+      upper === "HASH_SECRET")
+  ) {
+    throw new Error(
+      "VNPAY_HASH_SECRET dang la gia tri mau. Hay cap nhat secret VNPAY sandbox hoac production trong .env."
+    );
+  }
+
+  return normalized;
 }
 
 export function getVnpayConfig(): VnpayConfig {
+  const tmnCode = rejectPlaceholderCredential(
+    "VNPAY_TMN_CODE",
+    requireEnv("VNPAY_TMN_CODE")
+  );
+  const hashSecret = rejectPlaceholderCredential(
+    "VNPAY_HASH_SECRET",
+    requireEnv("VNPAY_HASH_SECRET")
+  );
+
   return {
-    tmnCode: requireEnv("VNPAY_TMN_CODE"),
-    hashSecret: requireEnv("VNPAY_HASH_SECRET"),
+    tmnCode,
+    hashSecret,
     paymentUrl:
       process.env.VNPAY_PAYMENT_URL ||
       "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
