@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "postinstall": "prisma generate",
     "pulse:dev": "npm --prefix apps/pulse-atelier run dev",
     "pulse:build": "npm --prefix apps/pulse-atelier run build",
     "pulse:lint": "npm --prefix apps/pulse-atelier run lint",
